@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,38 +13,58 @@ namespace GetUsersFromLogs
     {
         static void Main(string[] args)
         {
-            var files = Directory.GetFiles(@"E:\Work\OAS-GetUsersFromLogs\Production\", "log-*.log", SearchOption.AllDirectories);
-            Regex debugRowRegex = new Regex(@"\[Debug\]");
-            Regex rowReplaceRegex = new Regex(@"\[Debug\]\[(\w+)\]");
-            HashSet<string> userNames = new HashSet<string>();
+            //const string basePath = @"C:\Test\GetUsersFromLogs";
+            var currentDir = Directory.GetCurrentDirectory();
+            var files = Directory.GetFiles($@"{currentDir}\Production\", "log-*.log", SearchOption.AllDirectories);
+            var debugRowRegex = new Regex(@"\[Debug\]");
+            var rowReplaceRegex = new Regex(@"\[Debug\]\[(\w+)\]");
+            var userNames = new HashSet<string>();
             foreach (var filePath in files)
             {
+                var fileDateString = Path.GetFileNameWithoutExtension(filePath)?.Replace("log-", "");
+                var fileDate = DateTime.ParseExact(fileDateString, "yyyyMMdd", new DateTimeFormatInfo());
+                if (fileDate.Year != 2018 || DateTime.Now.DayOfYear == fileDate.DayOfYear)
+                    continue;
+
                 var fileText = File.ReadAllLines(filePath);
 
                 foreach (var textRow in fileText)
                 {
-                    if (debugRowRegex.Match(textRow).Success)
-                    {
-                        var name = rowReplaceRegex.Replace(textRow, ":::START:::$&");
-                        if (name.Contains(":::START:::"))
-                        {
-                            var startIndex = name.IndexOf(":::START:::", StringComparison.CurrentCulture);
-                            name = name.Substring(startIndex + 19);
+                    if (!debugRowRegex.Match(textRow).Success) continue;
 
-                            var closingBracketIndex = name.IndexOf("]", StringComparison.CurrentCulture);
-                            name = name.Substring(0, closingBracketIndex);
-                            userNames.Add(name);
-                        }
-                    }
+                    var name = rowReplaceRegex.Replace(textRow, ":::START:::$&");
+
+                    if (!name.Contains(":::START:::")) continue;
+
+                    var startIndex = name.IndexOf(":::START:::", StringComparison.CurrentCulture);
+                    name = name.Substring(startIndex + 19);
+
+                    var closingBracketIndex = name.IndexOf("]", StringComparison.CurrentCulture);
+                    name = name.Substring(0, closingBracketIndex);
+
+                    if (name == "null")
+                        continue;
+
+                    var added = userNames.Add(name);
+
+                    if (added) Console.WriteLine($"Added {name} to list of names");
                 }
+
+                Console.WriteLine();
+
             }
 
-            foreach (var userName in userNames.OrderBy(x => x))
+            using (var sw = new StreamWriter($@"{currentDir}\users.txt"))
             {
-                Console.WriteLine(userName);
+                sw.WriteLine("INSERT INTO XXX (YYY)");
+                sw.WriteLine("VALUES");
+                foreach (var userName in userNames.OrderBy(x => x))
+                {
+                    sw.WriteLine($"('{userName}'),");
+                    Console.WriteLine($"Wrote {userName} to file");
+                }
+                sw.WriteLine("GO");
             }
-
-            Console.ReadLine();
         }
     }
 }
