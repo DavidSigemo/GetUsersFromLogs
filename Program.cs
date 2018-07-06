@@ -21,7 +21,14 @@ namespace GetUsersFromLogs
             var userNames = new HashSet<string>();
             foreach (var filePath in files)
             {
-                var fileDateString = Path.GetFileNameWithoutExtension(filePath)?.Replace("log-", "");
+                var fileDateString = Path.GetFileNameWithoutExtension(filePath)?.Replace("log-", "").Replace("major-", "");
+
+                var underScoreIndex = fileDateString.IndexOf("_", StringComparison.CurrentCulture);
+
+                if (underScoreIndex != -1)
+                    fileDateString = fileDateString.Remove(underScoreIndex);
+
+                Console.WriteLine(fileDateString);
                 var fileDate = DateTime.ParseExact(fileDateString, "yyyyMMdd", new DateTimeFormatInfo());
                 if (fileDate.Year != 2018 || DateTime.Now.DayOfYear == fileDate.DayOfYear)
                     continue;
